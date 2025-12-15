@@ -1,14 +1,14 @@
 using Unity.Netcode;
 using UnityEngine;
 
-public class GameVisualManager : MonoBehaviour
+public class GameVisualManager : NetworkBehaviour
 {
 
     private const float GRID_SIZE = 3.1f;
 
     [SerializeField] private Transform crossPrefab;
     [SerializeField] private Transform circlePrefab;
-
+    private Transform prefab;
     private void Start()
     {
         GameManager.Instance.OnClickedOnGridPosition += GameManager_OnClickedOnGridPosition; 
@@ -16,13 +16,33 @@ public class GameVisualManager : MonoBehaviour
 
     private void GameManager_OnClickedOnGridPosition(object sender, GameManager.OnClickedOnGridPositionEventArgs e)
     {
-        Transform spawnCrossTransform = Instantiate(crossPrefab);
-        spawnCrossTransform.GetComponent<NetworkObject>().Spawn(true);
-        spawnCrossTransform.position = GetGridWorldPosition(e.x, e.y);
+        Debug.Log("GameManager_OnClickedOnGridPosition");
+        SpawnObjectRpc(e.x, e.y, e.playerType);
     }
 
+    [Rpc(SendTo.Server)]
+    private void SpawnObjectRpc(int x, int y, GameManager.PlayerType playerType)
+    {
+        Debug.Log("Spawn Object");
+         
+        switch (playerType)
+        {
+            case GameManager.PlayerType.Cross:
+                prefab = crossPrefab;
+                break;
+            case GameManager.PlayerType.Circle:
+                prefab = circlePrefab;
+                break;
+        }
+        Transform spawnCrossTransform = Instantiate(prefab, GetGridWorldPosition(x, y), Quaternion.identity);
+        spawnCrossTransform.GetComponent<NetworkObject>().Spawn(true);
+        //spawnCrossTransform.position = GetGridWorldPosition(x, y);
+    
+    }
     private Vector2 GetGridWorldPosition(int x, int y)
     {
         return new Vector2(-GRID_SIZE + x * GRID_SIZE, -GRID_SIZE + y * GRID_SIZE);
     }
+
+    
 }

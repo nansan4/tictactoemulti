@@ -1,8 +1,9 @@
 using System;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
     
     public static GameManager Instance {  get; private set; }
@@ -12,7 +13,20 @@ public class GameManager : MonoBehaviour
     {
         public int x;
         public int y;
+        public PlayerType playerType;
     }
+    public event EventHandler OnGameStarted;
+    public event EventHandler OnCurrentPlayablePlayerTypeChanged;
+    public enum PlayerType
+    {
+        None,
+        Cross,
+        Circle,
+    }
+
+
+    private PlayerType localPlayerType;
+    private PlayerType currentPlayablePlayerType;
     private void Awake()
     {
         if (Instance != null)
@@ -21,13 +35,81 @@ public class GameManager : MonoBehaviour
         }
         Instance = this;
     }
-    public void ClickedOnGridPosition(int x, int y)
+
+    public override void OnNetworkSpawn()
+    {
+        Debug.Log(NetworkManager.Singleton.LocalClientId);
+
+        if(NetworkManager.Singleton.LocalClientId == 0)
+        {
+            localPlayerType = PlayerType.Cross;
+        }
+        else
+        {
+            localPlayerType = PlayerType.Circle;
+        }
+
+
+        if (IsServer)
+        {
+            
+            NetworkManager.Singleton.OnClientConnectedCallback += NetworkManager_OnClientConnectedCallback;
+        }
+    }
+    private void NetworkManager_OnClientConnectedCallback(ulong obj)
+    {
+        if(NetworkManager.Singleton.ConnectedClientsList.Count == 2)
+        {
+            //Start game
+            currentPlayablePlayerType = PlayerType.Cross;
+            TriggerOnGameStartedRpc();
+        }
+    }
+    [Rpc(SendTo.ClientsAndHost)]
+    private void TriggerOnGameStartedRpc()
+    {
+        OnGameStarted?.Invoke(this, EventArgs.Empty);
+    }
+
+    [Rpc(SendTo.Server)]
+    public void ClickedOnGridPositionRpc(int x, int y, PlayerType playerType)
     {
         Debug.Log("ClickedOnGridPosition" +  x + ", " + y);
+        if(playerType != currentPlayablePlayerType)
+        {
+            return;
+        }
         OnClickedOnGridPosition?.Invoke(this, new OnClickedOnGridPositionEventArgs
         {
             x = x,
             y = y,
+            playerType = playerType,
         });
+
+        switch(currentPlayablePlayerType)
+        {
+            default:
+                case PlayerType.Cross:
+                    currentPlayablePlayerType = PlayerType.Circle;
+                    break;
+                case PlayerType.Circle:
+                    currentPlayablePlayerType = PlayerType.Cross;
+                    break;
+        }
+        TriggerOnCurrentPlayablePlayerTypeChanged();
+    }
+    [Rpc(SendTo.ClientsAndHost)]
+    private void TriggerOnCurrentPlayablePlayerTypeChanged()
+    {
+        OnCurrentPlayablePlayerTypeChanged?.Invoke(this, EventArgs.Empty);
+    }
+    public PlayerType GetLocalPlayerType()
+    {
+        return localPlayerType;
+    }
+
+    public PlayerType GetCurrentPlayablePlayerType()
+    {
+        return currentPlayablePlayerType;
     }
 }
