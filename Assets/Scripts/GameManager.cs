@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using static GameManager;
 
 public class GameManager : NetworkBehaviour
 {
@@ -23,6 +24,7 @@ public class GameManager : NetworkBehaviour
     public class OnGameWinEventArgs : EventArgs
     {
         public Line line;
+        public PlayerType winPlayerType;
     }
     public enum PlayerType
     {
@@ -218,16 +220,14 @@ public class GameManager : NetworkBehaviour
     private void TestWinner()
     {
 
-        foreach(Line line in lineList)
+        for(int i = 0; i<lineList.Count; i++)
         {
+            Line line = lineList[i];
             if (TestWinnerGridLine(line))
             {
                 Debug.Log("Winner");
                 currentPlayablePlayerType.Value = PlayerType.None;
-                onGameWin?.Invoke(this, new OnGameWinEventArgs
-                {
-                    line = line
-                });
+                TriggerOnGameWinRpc(i, playerTypeArray[line.centerGridPostion.x, line.centerGridPostion.y]);
                 break;
             }
         }
@@ -240,6 +240,16 @@ public class GameManager : NetworkBehaviour
         //        centerGridPosition = new Vector2Int(1, 0)
         //    });
         //}
+    }
+    [Rpc(SendTo.ClientsAndHost)]
+    private void TriggerOnGameWinRpc(int lineIndex, PlayerType winPlayerType)
+    {
+        Line line = lineList[lineIndex];
+        onGameWin?.Invoke(this, new OnGameWinEventArgs
+        {
+            line = line,
+            winPlayerType = winPlayerType
+        });
     }
     public PlayerType GetLocalPlayerType()
     {
