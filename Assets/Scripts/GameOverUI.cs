@@ -22,7 +22,7 @@ public class GameOverUI : MonoBehaviour
 
         GameManager.Instance.onGameWin += GameManager_OnGameWin;
         GameManager.Instance.OnRematch += GameManager_OnRematch;
-        GameManager.Instance.onGameTied += GameManager_OnGameTied;
+        GameManager.Instance.OnGameTied += GameManager_OnGameTied;
         Hide();
     }
 
